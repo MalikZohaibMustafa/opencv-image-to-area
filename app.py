@@ -74,7 +74,13 @@ def process_image(image, width):
         cv2.putText(orig, "{:.1f}in".format(dimB), (int(trbrX + 10), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
         cv2.putText(orig, "Area: {:.2f}".format(area), (int(tltrX - 15), int(tltrY + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
 
-        _, buffer = cv2.imencode('.png', orig)
+        # Resize the image to reduce its size
+        max_width = 800
+        scale = max_width / float(orig.shape[1])
+        resized = cv2.resize(orig, (max_width, int(orig.shape[0] * scale)))
+
+        # Compress the image to further reduce its size
+        _, buffer = cv2.imencode('.jpg', resized, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
         image_base64 = base64.b64encode(buffer).decode('utf-8')
 
         results.append({
@@ -97,11 +103,11 @@ def process_image_api():
 
     image = Image.open(image_file)
     image = np.array(image)
-    print("image recieved", width)
+    print("Image received", width)
 
     results = process_image(image, width)
 
     return jsonify(results)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')
