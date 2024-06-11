@@ -70,9 +70,9 @@ def process_image(image, width):
         dimB = dB / pixelsPerMetric
         area = cv2.contourArea(c) / (pixelsPerMetric ** 2)
 
-        cv2.putText(orig, "{:.1f}in".format(dimA), (int(tltrX - 15), int(tltrY - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+        cv2.putText(orig, "{:.1f}in".format(dimA), (int(tltrX - 15), int(tltrY +20)), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
         cv2.putText(orig, "{:.1f}in".format(dimB), (int(trbrX + 10), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
-        cv2.putText(orig, "Area: {:.2f}".format(area), (int(tltrX - 15), int(tltrY + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+        # cv2.putText(orig, "Area: {:.2f}".format(area), (int(tltrX - 15), int(tltrY + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
 
         # Resize the image to reduce its size
         max_width = 800
@@ -80,7 +80,7 @@ def process_image(image, width):
         resized = cv2.resize(orig, (max_width, int(orig.shape[0] * scale)))
 
         # Compress the image to further reduce its size
-        _, buffer = cv2.imencode('.jpg', resized, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        _, buffer = cv2.imencode('.jpg', resized, [int(cv2.IMWRITE_JPEG_QUALITY), 70])  # Adjust the quality value here
         image_base64 = base64.b64encode(buffer).decode('utf-8')
 
         results.append({
@@ -93,6 +93,7 @@ def process_image(image, width):
 
     return results
 
+# Flask API route
 @app.route('/process_image', methods=['POST'])
 def process_image_api():
     if 'image' not in request.files or 'width' not in request.form:
