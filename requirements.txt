@@ -9,4 +9,4 @@ scipy
 gunicorn 
 werkzeug
 firebase-admin
-
+matplotlib
