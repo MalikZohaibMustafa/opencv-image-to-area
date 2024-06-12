@@ -122,6 +122,7 @@ def get_contours():
     print("Image received", width)
 
     results, images = process_image1(image, width)
+    print("Images Processes", results)
 
     # Create a zip file containing all the images
     zip_buffer = io.BytesIO()
@@ -198,15 +199,12 @@ def process_image(image, width):
         resized = cv2.resize(orig, (max_width, int(orig.shape[0] * scale)))
 
         # Compress the image to further reduce its size
-        _, buffer = cv2.imencode('.jpg', resized, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-        image_base64 = base64.b64encode(buffer).decode('utf-8')
 
         results.append({
             "contour_number": len(results) + 1,
             "width": dimB,
             "height": dimA,
             "area": area,
-            "image": image_base64
         })
 
     return results
