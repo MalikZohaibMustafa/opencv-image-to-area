@@ -8,3 +8,5 @@ Pillow
 scipy
 gunicorn 
 werkzeug
+firebase-admin
+

@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from scipy.spatial import distance as dist
 from imutils import perspective
@@ -11,19 +11,34 @@ from PIL import Image
 import io
 import firebase_admin
 from firebase_admin import credentials, storage, firestore
-from PIL import Image
-import zipfile
+
 
 app = Flask(__name__)
 CORS(app)
 
 
+cred = credentials.Certificate('quickshift-d360a-firebase-adminsdk-q1gbs-b13d81d5a1.json')
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'quickshift-d360a.appspot.com'
+})
+
 def midpoint(ptA, ptB):
-	return ((ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5)
-import uuid
+    return ((ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5)
 
+def upload_to_firebase(image, contour_number):
+    bucket = storage.bucket()
+    blob = bucket.blob(f'contours/contour_{contour_number}.jpg')
 
-def process_image1(image, width):
+    # Encode image as JPEG
+    _, buffer = cv2.imencode('.jpg', image, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+    image_bytes = io.BytesIO(buffer).getvalue()
+    
+    # Upload image bytes to Firebase Storage
+    blob.upload_from_string(image_bytes, content_type='image/jpeg')
+    
+    return blob.public_url
+
+def process_image(image, width):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray, (7, 7), 0)
 
@@ -37,7 +52,6 @@ def process_image1(image, width):
     (cnts, _) = contours.sort_contours(cnts)
     pixelsPerMetric = None
     results = []
-    images = []
 
     for c in cnts:
         if cv2.contourArea(c) < 100:
@@ -86,25 +100,20 @@ def process_image1(image, width):
         scale = max_width / float(orig.shape[1])
         resized = cv2.resize(orig, (max_width, int(orig.shape[0] * scale)))
 
-        # Convert image to bytes
-        _, buffer = cv2.imencode('.jpg', resized)
-        image_bytes = buffer.tobytes()
+        image_url = upload_to_firebase(resized, len(results) + 1)
 
-        # Create metadata
-        metadata = {
+        results.append({
             "contour_number": len(results) + 1,
             "width": dimB,
             "height": dimA,
-            "area": area
-        }
+            "area": area,
+            "image_url": image_url
+        })
 
-        results.append(metadata)
-        images.append(image_bytes)
+    return results
 
-    return results, images
-
-@app.route('/get_contours', methods=['POST'])
-def get_contours():
+@app.route('/process_image', methods=['POST'])
+def process_image_api():
     if 'image' not in request.files or 'width' not in request.form:
         return jsonify({"error": "Invalid input"}), 400
 
@@ -115,18 +124,9 @@ def get_contours():
     image = np.array(image)
     print("Image received", width)
 
-    results, images = process_image1(image, width)
+    results = process_image(image, width)
 
-    # Create a zip file containing all the images
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-        for i, image_bytes in enumerate(images):
-            zip_file.writestr(f"contour_{i+1}.jpg", image_bytes)
-
-    zip_buffer.seek(0)
-
-    return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name='contours.zip'), 200
-
+    return jsonify(results)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0')
